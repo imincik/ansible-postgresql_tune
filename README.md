@@ -1,1 +1,2 @@
-# ansible-postgresql_tune
+# Ansible module for automatic PostgreSQL tuning
+
