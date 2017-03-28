@@ -301,7 +301,6 @@ def tune(data):
     const_for_size = CONST_SIZE[memory_arg[-2:]]
     total_memory = mem_in_size * const_for_size
 
-
     ### POSTGRESQL CONFIGURATION
     config["postgresql"] = postgres_settings(
         db_version,
@@ -313,6 +312,10 @@ def tune(data):
 
     # write configuration file
     with open(data["postgresql_file"], 'w') as confile:
+        # document some key parameters in the on server config file
+        confile.write("# pgtune db_version = " + str(db_version) + "\n")
+        confile.write("# pgtune db_type = " + str(db_type) + "\n")
+        confile.write("# pgtune total_memory = " + str(total_memory / CONST_SIZE['GB']) + 'GB' + "\n")
         for k,v in config["postgresql"].items():
             confile.writelines("{} = {}\n".format(k,v))
 
