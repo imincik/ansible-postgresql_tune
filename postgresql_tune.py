@@ -295,6 +295,7 @@ def tune(data):
     db_type = data["db_type"]
     max_connections = int(data["max_connections"])
 
+    # convert total_memory from xxxMB or xxxGB into a bytes value
     memory_arg = data["total_memory"]
     mem_in_size = int(memory_arg[:-2])
     const_for_size = CONST_SIZE[memory_arg[-2:]]
