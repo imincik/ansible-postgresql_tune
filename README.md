@@ -61,3 +61,26 @@ None
       sysctl_file: "{{ postgresql_postgresql_tune_sysctl_file }}"
 
 ```
+
+### Postgresql 9.6 ( using only 25% of the memory )
+```
+  vars:
+    postgresql_version: 9.6
+    postgresql_conf_directory: /etc/postgresql/9.6
+    postgresql_tune_db_type: web
+    postgresql_tune_total_memory: "{{ ansible_memtotal_mb }}MB"
+    postgresql_tune_total_memory_percentage: 25
+
+  tasks:
+  - name: Tune Postgresql
+    postgresql_tune:
+      db_version: "{{ postgresql_version }}"
+      db_type: "{{ postgresql_tune_db_type }}"
+      total_memory: "{{ postgresql_tune_total_memory }}"
+      total_memory_percentage: "{{ postgresql_tune_total_memory_percentage }}"
+      postgresql_file: "{{ postgresql_conf_directory }}/conf.d/99-postgresql-tune.conf"
+
+
+```
+
+

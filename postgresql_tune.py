@@ -66,6 +66,13 @@ options:
         required: True
         default: null
 
+    total_memory_percentage:
+        description
+            - Tune based on a percentage of the total_memory.
+              Format: 1-100
+        required: False
+        default: 100
+
     max_connections:
         description
             - Maximum number of PostgreSQL client's connections.
@@ -301,6 +308,12 @@ def tune(data):
     const_for_size = CONST_SIZE[memory_arg[-2:]]
     total_memory = mem_in_size * const_for_size
 
+    total_memory_percentage = int(data["total_memory_percentage"])
+    total_memory_original = total_memory
+
+    if total_memory_percentage != 100:
+        total_memory = ( total_memory * total_memory_percentage / 100 )
+
     ### POSTGRESQL CONFIGURATION
     config["postgresql"] = postgres_settings(
         db_version,
@@ -315,7 +328,9 @@ def tune(data):
         # document some key parameters in the on server config file
         confile.write("# pgtune db_version = " + str(db_version) + "\n")
         confile.write("# pgtune db_type = " + str(db_type) + "\n")
-        confile.write("# pgtune total_memory = " + str(total_memory / CONST_SIZE['GB']) + 'GB' + "\n")
+        confile.write("# pgtune total_memory = " + str(total_memory_original / CONST_SIZE['GB']) + 'GB' + "\n")
+        confile.write("# pgtune total_memory_percentage = " + data['total_memory_percentage'] + '%'+ "\n")
+        confile.write("# pgtune total_memory allocated = " + str(total_memory / CONST_SIZE['GB']) + 'GB' + "\n")
         for k,v in config["postgresql"].items():
             confile.writelines("{} = {}\n".format(k,v))
 
@@ -350,6 +365,11 @@ def main():
         "total_memory": {
             "required": True,
             "type": "str"
+        },
+        "total_memory_percentage": {
+            "required": False,
+            "type": "str",
+            "default": 100
         },
         "max_connections": {
             "required": True,
