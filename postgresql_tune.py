@@ -63,8 +63,8 @@ options:
         description
             - Total memory usable for PostgreSQL on server.
               Format: (1-9999)('MB' | GB')
-        required: True
-        default: null
+        required: False
+        default: Calculated
 
     total_memory_percentage:
         description
@@ -353,6 +353,12 @@ def tune(data):
 
 def main():
     """Main entry point function"""
+
+    import os
+    # tested on Linux and Mac el Capitan
+    calculated_mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+    default_memory = str(int(calculated_mem_bytes/(1024.**2))) + 'MB'
+
     fields = {
         "db_version": {
             "required": True,
@@ -363,8 +369,9 @@ def main():
             "type": "str"
         },
         "total_memory": {
-            "required": True,
-            "type": "str"
+            "required": False,
+            "type": "str",
+            "default": default_memory
         },
         "total_memory_percentage": {
             "required": False,
