@@ -43,8 +43,8 @@ None
 ### Postgres 9.1 (with changes to kernel SHM settings and setting a max_connections)
 ```
   vars:
-    postgresql_version: 9.6
-    postgresql_conf_directory: /etc/postgresql/9.6
+    postgresql_version: 9.1
+    postgresql_conf_directory: /etc/postgresql/9.1
     postgresql_tune_db_type: web
     postgresql_tune_total_memory: "{{ ansible_memtotal_mb }}MB"
     postgresql_tune_sysctl_file: /etc/sysctl.d/99-postgresql-tune.conf
