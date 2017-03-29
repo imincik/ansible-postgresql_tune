@@ -82,5 +82,32 @@ None
 
 
 ```
+### Postgresql 9.6 with total system memory automatically calculated and disabling any templating of max_connections
+```
+  vars:
+    postgresql_version: 9.6
+    postgresql_conf_directory: /etc/postgresql/9.6
+    postgresql_tune_db_type: web
+
+  tasks:
+  - name: Tune Postgresql
+    postgresql_tune:
+      db_version: "{{ postgresql_version }}"
+      db_type: "{{ postgresql_tune_db_type }}"
+      postgresql_file: "{{ postgresql_conf_directory }}/conf.d/99-postgresql-tune.conf"
+      disable_max_connections: true
+
+```
+
+This will tune Postgresql on the standard 'web' settings for max_connections but allow you to set a much higher max_connections in your main postgresql.conf
+
+A standard mechanism for detecting system memory is used rather than Ansible:-
+
+```
+os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+```
+
+(tested on Linux and Mac el Capitan)
+
 
 

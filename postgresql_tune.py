@@ -79,6 +79,15 @@ options:
               Format: integer number (ex.: 100)
         required: True
         default: null
+
+    disable_max_connections:
+        description
+            - Stop max_connections being passed down to the generated Postgresql config.
+              Useful to tune to a certain number of connections but allow a higher max.
+              Format: false|true
+        required: false
+        default: false
+
 '''
 
 
@@ -323,6 +332,11 @@ def tune(data):
         max_connections
     )
 
+    disable_max_connections = data["disable_max_connections"]
+
+    if disable_max_connections:
+        config["postgresql"].pop("max_connections", None)
+
     # write configuration file
     with open(data["postgresql_file"], 'w') as confile:
         # document some key parameters in the on server config file
@@ -385,6 +399,10 @@ def main():
         "postgresql_file": {
             "required": True,
             "type": "str"
+        },
+        "disable_max_connections": {
+            "required": False,
+            "type": "bool"
         },
         "sysctl_file": {
             "required": False,
