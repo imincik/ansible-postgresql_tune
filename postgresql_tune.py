@@ -180,9 +180,9 @@ def postgres_settings(
         # such setting can be even bad for very high memory systems, need show
         # warnings
         if total_memory >= (100 * CONST_SIZE['GB']):
-            print "# WARNING: not optimal for very high memory systems"
+            print ("# WARNING: not optimal for very high memory systems")
     else:
-        print "# WARNING: not optimal for very high memory systems"
+        print ("# WARNING: not optimal for very high memory systems")
 
     if db_version < 9.5:
         # checkpoint_segments
