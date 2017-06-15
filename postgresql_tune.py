@@ -63,8 +63,15 @@ options:
         description
             - Total memory usable for PostgreSQL on server.
               Format: (1-9999)('MB' | GB')
-        required: True
-        default: null
+        required: False
+        default: Calculated
+
+    total_memory_percentage:
+        description
+            - Tune based on a percentage of the total_memory.
+              Format: 1-100
+        required: False
+        default: 100
 
     max_connections:
         description
@@ -72,6 +79,15 @@ options:
               Format: integer number (ex.: 100)
         required: True
         default: null
+
+    disable_max_connections:
+        description
+            - Stop max_connections being passed down to the generated Postgresql config.
+              Useful to tune to a certain number of connections but allow a higher max.
+              Format: false|true
+        required: false
+        default: false
+
 '''
 
 
@@ -287,6 +303,32 @@ def format_config(config):
     return "\n".join(["{0} = {1}".format(k, v) for k, v in config.iteritems()])
 
 
+def create_dirs(file_path):
+    if not os.path.exists(os.path.dirname(file_path)):
+        try:
+            os.makedirs(os.path.dirname(file_path))
+        except OSError as exc: # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
+
+
+def file_exists(file_path):
+    if not file_path:
+        return False
+    elif not os.path.isfile(file_path):
+        return False
+    else:
+        return True
+
+
+def md5(file_path):
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+
 def tune(data):
     """Write PostgreSQL and Linux kernel configuration files"""
     config = {}
@@ -300,6 +342,12 @@ def tune(data):
     mem_in_size = int(memory_arg[:-2])
     const_for_size = CONST_SIZE[memory_arg[-2:]]
     total_memory = mem_in_size * const_for_size
+    total_memory_original = total_memory
+
+    total_memory_percentage = int(data["total_memory_percentage"])
+
+    if total_memory_percentage != 100:
+        total_memory = ( total_memory * total_memory_percentage / 100 )
 
     ### POSTGRESQL CONFIGURATION
     config["postgresql"] = postgres_settings(
@@ -310,14 +358,27 @@ def tune(data):
         max_connections
     )
 
+    disable_max_connections = data["disable_max_connections"]
+
+    if disable_max_connections:
+        config["postgresql"].pop("max_connections", None)
+    
+
     # write configuration file
+    old_postgresql_file_hash = md5(data["postgresql_file"]) if file_exists(data["postgresql_file"]) else None
+
+    create_dirs(data["postgresql_file"])
     with open(data["postgresql_file"], 'w') as confile:
         # document some key parameters in the on server config file
         confile.write("# pgtune db_version = " + str(db_version) + "\n")
         confile.write("# pgtune db_type = " + str(db_type) + "\n")
-        confile.write("# pgtune total_memory = " + str(total_memory / CONST_SIZE['GB']) + 'GB' + "\n")
+        confile.write("# pgtune total_memory = " + str(total_memory_original / float(CONST_SIZE['GB'])) + 'GB' + "\n")
+        confile.write("# pgtune total_memory_percentage = " + data['total_memory_percentage'] + '%'+ "\n")
+        confile.write("# pgtune total_memory allocated = " + str(total_memory / float(CONST_SIZE['GB'])) + 'GB' + "\n")
         for k,v in config["postgresql"].items():
             confile.writelines("{} = {}\n".format(k,v))
+
+    new_postgresql_file_hash = md5(data["postgresql_file"])
 
 
     ### KERNEL CONFIGURATION
@@ -329,15 +390,29 @@ def tune(data):
     )
 
     # write configuration file
-    with open(data["sysctl_file"], 'w') as confile:
-        for k,v in config["kernel"].items():
-            confile.writelines("{} = {}\n".format(k,v))
+    old_sysctl_file_hash = None
+    new_sysctl_file_hash = None
+    if bool(data["sysctl_file"]):
+        old_sysctl_file_hash = md5(data["sysctl_file"]) if file_exists(data["sysctl_file"]) else None
 
-    return True, config
+        create_dirs(data["sysctl_file"])
+        with open(data["sysctl_file"], 'w') as confile:
+            for k,v in config["kernel"].items():
+                confile.writelines("{} = {}\n".format(k,v))
+
+        new_sysctl_file_hash = md5(data["postgresql_file"])
+
+    return (old_postgresql_file_hash != new_postgresql_file_hash, config) or (old_sysctl_file_hash != new_sysctl_file_hash)
 
 
 def main():
     """Main entry point function"""
+
+    import os
+    # tested on Linux and Mac el Capitan
+    calculated_mem_bytes = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+    default_memory = str(int(calculated_mem_bytes/(1024.**2))) + 'MB'
+
     fields = {
         "db_version": {
             "required": True,
@@ -348,8 +423,14 @@ def main():
             "type": "str"
         },
         "total_memory": {
-            "required": True,
-            "type": "str"
+            "required": False,
+            "type": "str",
+            "default": default_memory
+        },
+        "total_memory_percentage": {
+            "required": False,
+            "type": "str",
+            "default": 100
         },
         "max_connections": {
             "required": True,
@@ -359,6 +440,10 @@ def main():
             "required": True,
             "type": "str"
         },
+        "disable_max_connections": {
+            "required": False,
+            "type": "bool"
+        },
         "sysctl_file": {
             "required": False,
             "type": "str"
@@ -367,7 +452,7 @@ def main():
 
     module = AnsibleModule(argument_spec=fields)
     has_changed, config = tune(module.params)
-    module.exit_json(changed=True, config=config)
+    module.exit_json(changed=has_changed, config=config)
 
 
 if __name__ == '__main__':

@@ -43,8 +43,8 @@ None
 ### Postgres 9.1 (with changes to kernel SHM settings and setting a max_connections)
 ```
   vars:
-    postgresql_version: 9.6
-    postgresql_conf_directory: /etc/postgresql/9.6
+    postgresql_version: 9.1
+    postgresql_conf_directory: /etc/postgresql/9.1
     postgresql_tune_db_type: web
     postgresql_tune_total_memory: "{{ ansible_memtotal_mb }}MB"
     postgresql_tune_sysctl_file: /etc/sysctl.d/99-postgresql-tune.conf
@@ -61,3 +61,53 @@ None
       sysctl_file: "{{ postgresql_postgresql_tune_sysctl_file }}"
 
 ```
+
+### Postgresql 9.6 ( using only 25% of the memory )
+```
+  vars:
+    postgresql_version: 9.6
+    postgresql_conf_directory: /etc/postgresql/9.6
+    postgresql_tune_db_type: web
+    postgresql_tune_total_memory: "{{ ansible_memtotal_mb }}MB"
+    postgresql_tune_total_memory_percentage: 25
+
+  tasks:
+  - name: Tune Postgresql
+    postgresql_tune:
+      db_version: "{{ postgresql_version }}"
+      db_type: "{{ postgresql_tune_db_type }}"
+      total_memory: "{{ postgresql_tune_total_memory }}"
+      total_memory_percentage: "{{ postgresql_tune_total_memory_percentage }}"
+      postgresql_file: "{{ postgresql_conf_directory }}/conf.d/99-postgresql-tune.conf"
+
+
+```
+### Postgresql 9.6 with total system memory automatically calculated and disabling any templating of max_connections
+```
+  vars:
+    postgresql_version: 9.6
+    postgresql_conf_directory: /etc/postgresql/9.6
+    postgresql_tune_db_type: web
+
+  tasks:
+  - name: Tune Postgresql
+    postgresql_tune:
+      db_version: "{{ postgresql_version }}"
+      db_type: "{{ postgresql_tune_db_type }}"
+      postgresql_file: "{{ postgresql_conf_directory }}/conf.d/99-postgresql-tune.conf"
+      disable_max_connections: true
+
+```
+
+This will tune Postgresql on the standard 'web' settings for max_connections but allow you to set a much higher max_connections in your main postgresql.conf
+
+A standard mechanism for detecting system memory is used rather than Ansible:-
+
+```
+os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+```
+
+(tested on Linux and Mac el Capitan)
+
+
+
